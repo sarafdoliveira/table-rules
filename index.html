@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Responsive Revenue Table</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a prototype control strip on top, then the app rendered at the chosen screen width and scaled to fit.
+   Tokens follow the product's design system (semantic names, px values). Single light theme, matching the product. */
+:root {
+  --bg-container: #ffffff;
+  --bg-layout: #f8f9f9;
+  --bg-neutral: #edeeee;
+  --bg-hover: #f2f3f3;
+  --table-header: #f1f2f2;
+  --border-default: #edeeee;
+  --border-strong: #d1d2d2;
+  --brand: #830051;
+  --brand-subtle: #fbf1f7;
+  --ai: #6b4fd8;
+  --ai-subtle: #f4f1fd;
+  --text-primary: #282a2a;
+  --text-secondary: #555b5b;
+  --text-tertiary: #828787;
+  --pos-bg: #eaf6ef; --pos-border: #2f9e5f; --pos-text: #1d6b3f;
+  --neg-bg: #fdeeee; --neg-border: #d9534f; --neg-text: #a12d2a;
+  --info-bg: #e5f5ff; --info-text: #0071b7;
+  --page: #e9ebeb;
+  --font: "Inter", "Helvetica Neue", Arial, sans-serif;
+  --radius-sm: 4px; --radius-md: 8px;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg-container); color: var(--text-primary); font-family: var(--font); font-size: 14px; line-height: 20px; }
+button, select, input { font-family: inherit; }
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+/* ---------- Prototype controls ---------- */
+.proto { padding-block: 16px 12px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 12px; }
+.proto-top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
+.proto h1 { margin: 0; font-size: 18px; line-height: 26px; font-weight: 600; text-wrap: balance; }
+.proto-note { font-size: 13px; color: var(--text-secondary); }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; }
+.ctl { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ctl-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+#screenRange { width: 220px; max-width: 40vw; accent-color: var(--brand); }
+.screen-val { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 64px; }
+.presets { display: flex; flex-wrap: wrap; gap: 4px; }
+.preset { border: 1px solid var(--border-strong); background: var(--bg-container); color: var(--text-primary); border-radius: 999px; padding: 3px 10px; font-size: 12px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.preset[aria-pressed="true"] { border-color: var(--brand); color: var(--brand); background: var(--brand-subtle); }
+.switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }
+.switch input { appearance: none; width: 34px; height: 20px; border-radius: 999px; background: var(--border-strong); position: relative; margin: 0; cursor: pointer; transition: background .15s; }
+.switch input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--bg-container); transition: transform .15s; }
+.switch input:checked { background: var(--ai); }
+.switch input:checked::after { transform: translateX(14px); }
+.switch input:disabled { opacity: .55; cursor: not-allowed; }
+.readout { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; gap: 6px; align-items: baseline; padding: 4px 10px; border-radius: var(--radius-sm); background: var(--bg-layout); border: 1px solid var(--border-default); font-size: 12px; white-space: nowrap; }
+.chip b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.chip.view-compact { background: #eef3f2; border-color: #dbe5e3; }
+.chip.view-default { background: #ebe5f0; border-color: #ddd3e6; }
+.chip.warn { background: var(--neg-bg); border-color: #f3c9c8; color: var(--neg-text); }
+
+/* ---------- Stage ---------- */
+.stage { padding-block: 0 32px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.scaler { position: relative; overflow: hidden; border-radius: var(--radius-md); border: 1px solid var(--border-strong); background: var(--bg-container); }
+.app { position: absolute; top: 0; left: 0; transform-origin: 0 0; background: var(--bg-container); min-height: 920px; display: flex; flex-direction: column; }
+
+/* ---------- App: header ---------- */
+.hdr { height: 64px; display: flex; align-items: center; padding: 0 16px; border-bottom: 1px solid var(--border-default); gap: 16px; }
+.logo { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 20px; color: var(--brand); letter-spacing: -.01em; }
+.logo-mark { width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--brand); border-right-color: #f0a830; }
+.nav { margin-left: auto; display: flex; height: 100%; align-items: stretch; }
+.nav a { display: flex; align-items: center; gap: 8px; padding: 0 24px; font-size: 16px; color: var(--text-primary); text-decoration: none; border-bottom: 2px solid transparent; }
+.nav a.on { color: var(--brand); font-weight: 500; border-bottom-color: var(--brand); }
+.vdiv { width: 1px; height: 24px; background: var(--border-strong); }
+.ask-ai { display: inline-flex; align-items: center; gap: 6px; background: var(--ai); color: #fff; border: 0; border-radius: var(--radius-sm); padding: 4px 10px; font-size: 13px; font-weight: 500; cursor: pointer; }
+.icon-btn { display: inline-grid; place-items: center; width: 36px; height: 36px; border: 0; background: transparent; color: var(--text-primary); border-radius: var(--radius-sm); cursor: pointer; }
+.icon-btn:hover { background: var(--bg-hover); }
+.avatar { width: 32px; height: 32px; border-radius: 50%; background: #6e7a8a; color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 600; }
+
+/* ---------- Data type bar ---------- */
+.dtbar { height: 52px; display: flex; align-items: center; gap: 24px; padding: 0 16px; border-bottom: 1px solid var(--border-default); }
+.dtgroup { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-secondary); }
+.seg { display: flex; border: 1px solid var(--border-default); border-radius: 999px; padding: 2px; gap: 2px; }
+.pill { border: 1px solid transparent; background: transparent; border-radius: 999px; padding: 5px 12px; font-size: 14px; color: var(--text-primary); cursor: pointer; }
+.pill.on { border-color: var(--brand); color: var(--brand); background: var(--brand-subtle); }
+.pill.out { border-color: var(--border-strong); }
+
+/* ---------- Body ---------- */
+.body { flex: 1; display: flex; min-height: 0; }
+.main { flex: 1; min-width: 0; background: var(--bg-layout); padding: 12px 32px 40px; }
+.content { max-width: 1500px; margin: 0 auto; }
+.tabs { display: flex; align-items: center; border-bottom: 1px solid var(--border-strong); height: 48px; }
+.tab { padding: 0 10px; height: 100%; display: flex; align-items: center; font-size: 16px; color: var(--text-primary); border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: default; }
+.tab.on { border-bottom-color: var(--text-primary); font-weight: 500; }
+.tabs .spacer { flex: 1; }
+.linkish { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-primary); }
+.crumbs { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; font-size: 13px; color: var(--text-secondary); gap: 16px; }
+.crumbs ol { display: flex; gap: 10px; margin: 0; padding: 0; list-style: none; align-items: center; }
+.crumbs li + li::before { content: "/"; margin-right: 10px; color: var(--text-tertiary); }
+.crumbs li:last-child { color: var(--text-primary); }
+.refresh { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.refresh .more { color: var(--text-primary); font-size: 14px; margin-left: 4px; }
+.filters { display: flex; gap: 8px; margin-top: 32px; flex-wrap: wrap; }
+.dd { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 36px; padding: 0 12px; min-width: 160px; background: var(--bg-container); border: 1px solid var(--border-default); border-radius: var(--radius-sm); font-size: 14px; color: var(--text-primary); }
+.cards { display: flex; gap: 16px; margin-top: 32px; }
+.card { flex: 1; max-width: 450px; background: var(--bg-container); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: 10px 16px 14px; }
+.card-h { display: flex; justify-content: space-between; align-items: center; font-weight: 500; font-size: 14px; }
+.card-sub { font-size: 10px; color: var(--text-tertiary); }
+.big { display: flex; justify-content: space-between; gap: 12px; margin-top: 6px; }
+.big-n { font-size: 32px; line-height: 40px; font-weight: 500; font-variant-numeric: tabular-nums; margin-top: 6px; }
+.deltas { display: grid; grid-template-columns: repeat(2, 82px); gap: 6px 14px; }
+.delta { display: grid; justify-items: end; gap: 2px; font-size: 10px; color: var(--text-secondary); }
+.dchip { width: 82px; text-align: right; padding: 3px 6px; border-radius: var(--radius-sm); font-size: 13px; font-variant-numeric: tabular-nums; border: 1px solid; }
+.dchip.pos { background: var(--pos-bg); border-color: var(--pos-border); color: var(--text-primary); }
+.dchip.neg { background: var(--neg-bg); border-color: var(--neg-border); color: var(--text-primary); }
+.rank { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.rank th { font-size: 10px; font-weight: 400; color: var(--text-tertiary); text-align: right; padding: 4px 0; }
+.rank td { padding: 4px 0; height: 36px; }
+.rank td:nth-child(2), .rank td:nth-child(3) { text-align: right; }
+.rank td:nth-child(3) .dchip { display: inline-block; width: 80px; }
+.rank .ix { color: var(--text-secondary); margin-right: 6px; font-size: 13px; }
+
+/* ---------- Table toolbar ---------- */
+.tbar { display: flex; align-items: center; gap: 8px; margin-top: 32px; position: relative; }
+.sel { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px 0 12px; background: var(--bg-container); border: 1px solid var(--border-default); border-radius: var(--radius-sm); font-size: 14px; color: var(--text-tertiary); }
+.sel select { border: 0; background: transparent; font-size: 14px; color: var(--text-primary); font-weight: 500; cursor: pointer; padding: 0; }
+.tbar .spacer { flex: 1; }
+.tbtn { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; background: var(--bg-container); border: 1px solid var(--border-default); border-radius: var(--radius-sm); font-size: 14px; color: var(--text-primary); cursor: pointer; }
+.tbtn.sq { width: 40px; padding: 0; justify-content: center; }
+.tbtn:hover { background: var(--bg-hover); }
+.badge-new { font-size: 10px; font-weight: 700; letter-spacing: .04em; color: #fff; background: var(--brand); border-radius: 999px; padding: 1px 6px; line-height: 14px; }
+
+/* ---------- Data table ---------- */
+.tscroll { margin-top: 12px; border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--bg-container); overflow: hidden; }
+.tscroll.below-min { overflow-x: auto; }
+table.dt { border-collapse: separate; border-spacing: 0; table-layout: fixed; font-variant-numeric: tabular-nums; }
+.dt th, .dt td { padding: 0 var(--pad); font-size: var(--fs); line-height: calc(var(--fs) + 6px); border-bottom: 1px solid var(--border-default); height: 44px; vertical-align: middle; }
+.dt td.num, .dt th.sub { text-align: right; white-space: nowrap; }
+.dt thead th { background: var(--bg-container); font-weight: 600; }
+.dt thead tr:last-child th { border-bottom-color: var(--border-strong); }
+.dt th.grp { text-align: center; height: 48px; }
+.dt th.mainh { text-align: left; vertical-align: top; padding-top: 12px; padding-bottom: 12px; }
+.dt th.mainh small { display: block; font-weight: 400; font-size: 10px; line-height: 13px; color: var(--text-tertiary); margin-top: 2px; }
+.dt .gstart { border-left: 1px solid var(--border-strong); }
+.dt .maincol { border-right: 1px solid var(--border-strong); }
+.dt tr.total td { background: var(--table-header); font-weight: 500; border-bottom: 2px solid var(--brand); }
+.dt tr.child td.name { padding-left: calc(var(--pad) + 22px); color: var(--text-secondary); }
+.dt td.name { white-space: normal; }
+.dt td.name a { color: var(--text-primary); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--text-tertiary); }
+.dt .tree { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+.dt .tree svg { flex: none; transition: transform .15s; }
+.dt .tree[aria-expanded="true"] svg { transform: rotate(90deg); }
+.dt tbody tr:not(.total):hover td:not(.filler) { background: var(--bg-hover); }
+/* Empty state: lines carry on, no content, no hover, no grey header/total fill */
+.dt .filler { background: var(--bg-container) !important; padding: 0; }
+.dt tr.total td.filler { border-bottom: 1px solid var(--border-default); }
+
+/* ---------- AI panel ---------- */
+.ai { flex: none; border-left: 1px solid var(--border-default); background: var(--bg-container); display: flex; flex-direction: column; }
+.ai-h { display: flex; align-items: center; gap: 8px; padding: 10px 8px 10px 12px; }
+.ai-title { display: flex; align-items: center; gap: 6px; color: var(--ai); font-weight: 500; flex: 1; }
+.ai-body { padding: 4px 12px; display: grid; gap: 8px; align-content: start; flex: 1; }
+.bubble { border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: 10px; font-size: 12px; line-height: 16px; }
+.sugg { display: flex; gap: 8px; align-items: center; background: var(--bg-layout); border: 0; border-radius: var(--radius-sm); padding: 8px 10px; font-size: 12px; color: var(--text-secondary); text-align: left; cursor: pointer; }
+.ai-f { padding: 12px; border-top: 1px solid var(--border-default); display: grid; gap: 6px; }
+.ai-in { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border-strong); border-radius: var(--radius-md); padding: 6px 6px 6px 12px; font-size: 12px; color: var(--text-tertiary); }
+.ai-in > span:first-child { flex: 1; }
+.send { flex: none; width: 32px; height: 32px; border-radius: var(--radius-sm); background: var(--ai); color: #fff; display: grid; place-items: center; }
+.ai-f small { font-size: 9px; color: var(--text-tertiary); text-align: center; }
+
+/* ---------- Side sheet ---------- */
+.scrim { position: absolute; inset: 0; background: rgba(40,42,42,.32); display: flex; justify-content: flex-end; z-index: 20; }
+.sheet { width: 400px; height: 100%; background: var(--bg-container); display: flex; flex-direction: column; box-shadow: -8px 0 24px rgba(0,0,0,.12); }
+.sheet-h { display: flex; align-items: center; justify-content: space-between; padding: 20px 20px 8px 24px; }
+.sheet-h h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.sheet-b { padding: 0 24px; flex: 1; overflow: auto; }
+.sheet-b p { margin: 4px 0 16px; color: var(--text-secondary); font-size: 14px; }
+.clist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.crow { display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 10px 0 4px; border: 1px solid var(--border-default); border-radius: var(--radius-sm); background: var(--bg-container); }
+.crow.dragging { opacity: .4; }
+.crow.over { border-color: var(--brand); }
+.handle { border: 0; background: none; padding: 6px 4px; cursor: grab; color: var(--text-tertiary); display: grid; place-items: center; border-radius: var(--radius-sm); }
+.crow label { display: flex; align-items: center; gap: 10px; flex: 1; cursor: pointer; font-size: 14px; }
+.crow input { width: 16px; height: 16px; accent-color: var(--brand); margin: 0; }
+.crow input:disabled + span { color: var(--text-secondary); }
+.crow .tag { margin-left: auto; font-size: 11px; color: var(--text-tertiary); }
+.minnote { margin-top: 14px; display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--info-bg); color: var(--info-text); font-size: 13px; }
+.sheet-f { display: flex; align-items: center; gap: 8px; padding: 16px 24px; border-top: 1px solid var(--border-default); }
+.sheet-f .spacer { flex: 1; }
+.btn { height: 36px; padding: 0 16px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 500; cursor: pointer; border: 1px solid var(--border-strong); background: var(--bg-container); color: var(--text-primary); }
+.btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+.btn.text { border-color: transparent; color: var(--brand); padding: 0 6px; }
+
+/* ---------- What's new popover ---------- */
+.pop { position: absolute; right: 0; top: 46px; width: 300px; z-index: 15; background: var(--bg-container); border: 1px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: 0 8px 24px rgba(0,0,0,.14); padding: 14px 16px; }
+.pop::before { content: ""; position: absolute; top: -6px; right: 60px; width: 10px; height: 10px; background: var(--bg-container); border-left: 1px solid var(--border-strong); border-top: 1px solid var(--border-strong); transform: rotate(45deg); }
+.pop h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+.pop p { margin: 0 0 12px; font-size: 13px; color: var(--text-secondary); line-height: 18px; }
+.pop .row { display: flex; justify-content: flex-end; gap: 8px; }
+.pop .btn { height: 30px; padding: 0 12px; font-size: 13px; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+</head>
+<body>
+<header class="proto">
+  <div class="controls">
+    <div class="ctl">
+      <label class="ctl-label" for="screenRange">Screen</label>
+      <input id="screenRange" type="range" min="1280" max="2560" step="1" value="1280">
+      <span class="screen-val" id="screenVal">1,280px</span>
+    </div>
+  </div>
+</header>
+
+<section class="stage">
+  <div class="scaler" id="scaler">
+    <div class="app" id="app"></div>
+  </div>
+</section>
+
+<script>
+(function () {
+  // ---------- Rules ----------
+  const R = {
+    breakpoint: 1130,
+    compact: { fs: 12, pad: 8, cellMin: 72, cellMax: 115 },
+    def: { fs: 14, pad: 12, cellMin: 100, cellMax: 156 },
+    mainMin: 150, mainMax: 202,
+    minGroups: 3, perGroup: 3,
+    contentMax: 1500, aiShare: 0.25, aiDefaultFrom: 1280, aiLockedFrom: 2500, pagePad: 32
+  };
+  const MIN_TABLE = R.mainMin + R.minGroups * R.perGroup * R.compact.cellMin; // 798
+
+  const GROUPS = [
+    { id: "month", label: "October 2026" },
+    { id: "qtd", label: "Quarter to Date" },
+    { id: "ytd", label: "Year to Date" },
+    { id: "mrr", label: "Monthly Run Rate" },
+    { id: "fy", label: "Full Year" }
+  ];
+  const DEFAULT_ORDER = GROUPS.map(g => g.id);
+  const gLabel = id => GROUPS.find(g => g.id === id).label;
+
+  // ---------- Placeholder data ----------
+  const ROWS = [
+    { name: "Specialty Care", scale: 1.0 },
+    { name: "Primary Care", scale: 0.72, children: [
+      { name: "Respiratory", scale: 0.31 }, { name: "Cardiovascular", scale: 0.26 }, { name: "Metabolic", scale: 0.15 } ] },
+    { name: "Immunology", scale: 0.41 },
+    { name: "Vaccines", scale: 0.19 }
+  ];
+  const GF = { month: 1, qtd: 2.9, ytd: 9.6, mrr: 1.04, fy: 12.3 };
+  function rng(seed) { let s = 0; for (const c of seed) s = (s * 31 + c.charCodeAt(0)) >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+  function vals(name, scale, gid, cmp) {
+    const r = rng(name + gid + cmp);
+    const actual = 412 * scale * GF[gid] * (0.92 + r() * 0.16);
+    const diff = actual * (r() * 0.32 - 0.14);
+    const growth = r() * 120 - 35;
+    return { actual, diff, growth };
+  }
+  const f1 = n => n.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const sg = n => (n >= 0 ? "+" : "−") + f1(Math.abs(n));
+
+  // ---------- State ----------
+  const S = {
+    screen: 1280, aiPref: null,
+    order: DEFAULT_ORDER.slice(), hidden: new Set(),
+    compare: "vs BUD", expanded: false,
+    sheetOpen: false, draftOrder: null, draftHidden: null,
+    popSeen: false
+  };
+  try { S.popSeen = localStorage.getItem("rt-pop-seen") === "1"; } catch (e) {}
+
+  const aiOpen = () => S.screen >= R.aiLockedFrom ? true : (S.aiPref ?? S.screen >= R.aiDefaultFrom);
+  const aiWidth = () => aiOpen() ? Math.round(S.screen * R.aiShare) : 0;
+  const tableWidth = () => Math.min(S.screen - aiWidth() - R.pagePad * 2, R.contentMax);
+
+  // The core rule: measure the table, then decide view, columns and widths.
+  function layout(W, order, hidden) {
+    const avail = order.filter(id => !hidden.has(id));
+    const Wt = Math.max(W, MIN_TABLE);
+    const compact = Wt < R.breakpoint;
+    const v = compact ? R.compact : R.def;
+    let g, main, cell;
+    if (compact) {
+      // Compact keeps the minimum set and stretches: main and cells grow together (main twice as fast).
+      g = Math.min(R.minGroups, avail.length);
+      const n = g * R.perGroup;
+      const s = (Wt - R.mainMin - n * v.cellMin) / (2 + n);
+      main = Math.min(R.mainMin + 2 * s, R.mainMax);
+      cell = (Wt - main) / n;
+      if (cell > v.cellMax) { cell = v.cellMax; main = Math.min(Wt - n * cell, R.mainMax); }
+    } else {
+      // Comfortable adds whole groups as room allows; groups never split.
+      const gFit = Math.max(R.minGroups, Math.floor((Wt - R.mainMin) / (R.perGroup * v.cellMin)));
+      g = Math.min(gFit, avail.length);
+      const n = g * R.perGroup;
+      main = gFit === R.minGroups ? R.mainMax : R.mainMin; // hold the main column right after the switch
+      cell = (Wt - main) / n;
+      if (cell > v.cellMax) { cell = v.cellMax; main = Math.min(Wt - n * cell, R.mainMax); }
+    }
+    const n = g * R.perGroup;
+    const used = main + n * cell;
+    return { W, Wt, compact, v, shown: avail.slice(0, g), avail, main, cell, n, filler: Math.max(0, Wt - used), belowMin: W < MIN_TABLE };
+  }
+
+  // ---------- Icons ----------
+  const I = {
+    home: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>',
+    trend: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/></svg>',
+    spark: '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z"/></svg>',
+    grid: '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="5" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="19" r="2"/></svg>',
+    down: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>',
+    right: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>',
+    info: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>',
+    copy: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="1"/><path d="M4 16V5a1 1 0 0 1 1-1h11"/></svg>',
+    clock: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    eyeoff: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l18 18M10.6 6.1A9.8 9.8 0 0 1 12 6c6 0 9.5 6 9.5 6a17 17 0 0 1-3.2 3.8M6.5 7.6A17 17 0 0 0 2.5 12S6 18 12 18a9 9 0 0 0 4-.9"/></svg>',
+    updown: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 9l4-4 4 4M8 15l4 4 4-4"/></svg>',
+    expand: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
+    cols: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M9 5v14M15 5v14"/></svg>',
+    menu: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>',
+    plus: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
+    x: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+    send: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M6 11l6-6 6 6"/></svg>',
+    drag: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>'
+  };
+
+  // ---------- Render ----------
+  const app = document.getElementById("app");
+  const scaler = document.getElementById("scaler");
+
+  function deltaChip(n, label) { return `<div class="delta"><span class="dchip ${n >= 0 ? "pos" : "neg"}">${sg(n)}</span>${label}</div>`; }
+
+  function tableHTML(L) {
+    const v = L.v;
+    const cols = `<col style="width:${L.main.toFixed(2)}px">` + Array.from({ length: L.n }, () => `<col style="width:${L.cell.toFixed(2)}px">`).join("") + (L.filler > 0.5 ? `<col style="width:${L.filler.toFixed(2)}px">` : "");
+    const fillH = L.filler > 0.5 ? `<th class="filler" rowspan="2" aria-hidden="true"></th>` : "";
+    const fillD = L.filler > 0.5 ? `<td class="filler" aria-hidden="true"></td>` : "";
+    const subs = ["2026", S.compare, "Growth"];
+    let h = `<table class="dt" style="--fs:${v.fs}px;--pad:${v.pad}px;width:${L.Wt}px"><colgroup>${cols}</colgroup><thead><tr>`;
+    h += `<th class="mainh maincol" rowspan="2" scope="col">Business Areas<small>Ordered by Actual Revenue (High to Low)</small></th>`;
+    L.shown.forEach(id => { h += `<th class="grp gstart" colspan="3" scope="colgroup">${gLabel(id)}</th>`; });
+    h += fillH + `</tr><tr>`;
+    L.shown.forEach(() => subs.forEach((s, i) => { h += `<th class="sub${i === 0 ? " gstart" : ""}" scope="col">${s}</th>`; }));
+    h += `</tr></thead><tbody>`;
+    const cells = (name, scale) => L.shown.map(id => { const x = vals(name, scale, id, S.compare); return `<td class="num gstart">${f1(x.actual)}</td><td class="num">${sg(x.diff)}</td><td class="num">${sg(x.growth)}%</td>`; }).join("");
+    // Total
+    h += `<tr class="total"><td class="name maincol">Total</td>` + L.shown.map(id => {
+      let a = 0, d = 0; ROWS.forEach(r => { const x = vals(r.name, r.scale, id, S.compare); a += x.actual; d += x.diff; });
+      const gr = vals("Total", 1, id, S.compare).growth;
+      return `<td class="num gstart">${f1(a)}</td><td class="num">${sg(d)}</td><td class="num">${sg(gr)}%</td>`;
+    }).join("") + fillD + `</tr>`;
+    ROWS.forEach(r => {
+      const nm = r.children
+        ? `<button class="tree" aria-expanded="${S.expanded}" data-act="tree">${I.right}<span>${r.name}</span></button>`
+        : `<a href="#" data-act="noop">${r.name}</a>`;
+      h += `<tr><td class="name maincol">${nm}</td>${cells(r.name, r.scale)}${fillD}</tr>`;
+      if (r.children && S.expanded) r.children.forEach(c => { h += `<tr class="child"><td class="name maincol">${c.name}</td>${cells(c.name, c.scale)}${fillD}</tr>`; });
+    });
+    h = h.replace(/<td class="num gstart">/g, '<td class="num gstart">');
+    return h + `</tbody></table>`;
+  }
+
+  function sheetHTML() {
+    const L = layout(tableWidth(), S.draftOrder, S.draftHidden);
+    const shown = new Set(L.shown);
+    const locked = L.avail.length <= R.minGroups;
+    const rows = S.draftOrder.map((id, i) => {
+      const on = shown.has(id);
+      const dis = on && locked;
+      const tag = S.draftHidden.has(id) ? "Hidden" : (on ? "" : "No room");
+      return `<li class="crow" draggable="true" data-id="${id}">
+        <button class="handle" data-act="handle" data-id="${id}" aria-label="Reorder ${gLabel(id)}, position ${i + 1} of ${S.draftOrder.length}. Use arrow keys.">${I.drag}</button>
+        <label><input type="checkbox" data-act="tick" data-id="${id}" ${on ? "checked" : ""} ${dis ? "disabled" : ""}><span>${gLabel(id)}</span>${tag ? `<span class="tag">${tag}</span>` : ""}</label>
+      </li>`;
+    }).join("");
+    return `<div class="scrim" data-act="scrim"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+      <div class="sheet-h"><h2 id="sheetTitle">Customise Table Columns</h2><button class="icon-btn" data-act="cancel" aria-label="Close">${I.x}</button></div>
+      <div class="sheet-b"><p>Select the columns to display, then drag to reorder.</p><ul class="clist" id="clist">${rows}</ul>
+      ${locked ? `<div class="minnote">${I.info}At least 3 groups must stay selected.</div>` : ""}</div>
+      <div class="sheet-f"><button class="btn text" data-act="reset">Reset to default</button><span class="spacer"></span><button class="btn" data-act="cancel">Cancel</button><button class="btn primary" data-act="save">Save</button></div>
+    </div></div>`;
+  }
+
+  function render() {
+    const W = tableWidth();
+    const L = layout(W, S.order, S.hidden);
+    const aw = aiWidth();
+    const showCustomise = L.avail.length > L.shown.length || S.hidden.size > 0;
+    const showPop = showCustomise && !S.popSeen && !S.sheetOpen;
+    const total = vals("Total", 1, "ytd", "card");
+
+    app.style.width = S.screen + "px";
+    app.innerHTML = `
+      <div class="hdr">
+        <div class="logo"><span class="logo-mark" aria-hidden="true"></span>Insights</div>
+        <nav class="nav" aria-label="Main"><a href="#" data-act="noop">${I.home}Home</a><a href="#" class="on" data-act="noop">${I.trend}Business Insights</a><a href="#" data-act="noop">${I.spark}AI Insights</a></nav>
+        <span class="vdiv"></span>
+        <button class="ask-ai" data-act="ai-open">Ask AI ${I.plus.replace('width="18" height="18"', 'width="14" height="14"')}</button>
+        <button class="icon-btn" aria-label="Apps" data-act="noop">${I.grid}</button>
+        <span class="avatar" aria-hidden="true">JD</span>
+      </div>
+      <div class="dtbar">
+        <div class="dtgroup">Select Data: <div class="seg"><button class="pill on">Actuals</button><button class="pill">Planning</button></div></div>
+        <span class="vdiv"></span>
+        <div class="dtgroup">Select Type: <button class="pill on">Internal</button><button class="pill out">External</button></div>
+      </div>
+      <div class="body">
+        <div class="main">
+          <div class="content" style="width:${W}px;max-width:none">
+            <div class="tabs"><span class="tab on">Revenue</span><span class="tab">Profit &amp; Loss</span><span class="tab">Cost</span><span class="tab">Cash Flow</span><span class="tab">Workforce</span><span class="spacer"></span><span class="linkish">Copy Link ${I.copy}</span></div>
+            <div class="crumbs"><ol><li class="linkish">${I.home}Actuals</li><li>Internal</li><li>Revenue</li></ol>
+              <span class="refresh">${I.clock}Last refreshed 4 Nov 2026, 09:12 <span class="more">More details</span></span></div>
+            <div class="filters"><span class="dd">Total Revenue ${I.down}</span><span class="dd">Business Areas ${I.down}</span><span class="dd">October 26 ${I.down}</span><span class="dd">Filter by Products ${I.down}</span></div>
+            <div class="cards">
+              <div class="card"><div class="card-h">Total Revenue <span>${I.info}</span></div><div class="card-sub">Budget • Oct 2026</div>
+                <div class="big"><div class="big-n">${f1(total.actual * 4.2)}</div>
+                <div class="deltas">${deltaChip(-6.1, "vs Forecast")}${deltaChip(16.9, "vs Plan")}${deltaChip(0.06, "vs BUD")}${deltaChip(-22.9, "vs PY")}</div></div></div>
+              <div class="card"><div class="card-h">Total Revenue <span>${I.info}</span></div>
+                <table class="rank"><thead><tr><th></th><th>YTD ($m)</th><th>vs PY ($m)</th></tr></thead><tbody>
+                <tr><td><span class="ix">1</span>North America</td><td>6,099.9</td><td><span class="dchip pos">+2,541.1</span></td></tr>
+                <tr><td><span class="ix">2</span>Europe</td><td>1,099.9</td><td><span class="dchip neg">−867.8</span></td></tr>
+                <tr><td><span class="ix">3</span>Asia Pacific</td><td>699.9</td><td><span class="dchip pos">+568.1</span></td></tr></tbody></table></div>
+            </div>
+            <div class="tbar">
+              <span class="sel">Format <select aria-label="Format"><option>Period</option></select></span>
+              <span class="sel">Compare <select id="cmp" aria-label="Compare"><option ${S.compare === "vs BUD" ? "selected" : ""}>vs BUD</option><option ${S.compare === "vs PY" ? "selected" : ""}>vs PY</option></select></span>
+              <span class="spacer"></span>
+              <button class="tbtn sq" aria-label="Hide empty rows" data-act="noop">${I.eyeoff}</button>
+              <button class="tbtn sq" aria-label="Expand all rows" data-act="tree">${I.updown}</button>
+              <button class="tbtn sq" aria-label="Full screen" data-act="noop">${I.expand}</button>
+              ${showCustomise ? `<button class="tbtn" id="custBtn" data-act="open-sheet" aria-label="Customise Columns, new">${I.cols}Customise Columns <span class="badge-new" aria-hidden="true">NEW</span></button>` : ""}
+              ${showPop ? `<div class="pop" role="dialog" aria-labelledby="popT"><h3 id="popT">Tables now fit your screen</h3><p>No more sideways scrolling. Choose which columns to show, and in what order, with Customise Columns.</p><div class="row"><button class="btn" data-act="pop-no">Not now</button><button class="btn primary" data-act="pop-yes">Show me</button></div></div>` : ""}
+            </div>
+            <div class="tscroll ${L.belowMin ? "below-min" : ""}" style="width:${W}px">${tableHTML(L)}</div>
+          </div>
+        </div>
+        ${aw ? `<aside class="ai" style="width:${aw}px" aria-label="AI assistant">
+          <div class="ai-h"><button class="icon-btn" aria-label="History" data-act="noop">${I.menu}</button><span class="ai-title">${I.spark}Insights AI</span>
+            <button class="icon-btn" aria-label="New chat" data-act="noop">${I.plus}</button>
+            ${S.screen < R.aiLockedFrom ? `<button class="icon-btn" aria-label="Close AI panel" data-act="ai-close">${I.x}</button>` : ""}</div>
+          <div class="ai-body"><div class="bubble">Hi Jordan, how can I help you today? I can explain a KPI, or answer questions about your data.</div>
+            <button class="sugg">${I.spark}What drove the change in Year to Date?</button><button class="sugg">${I.spark}Sum up Q3 Specialty Care Europe</button></div>
+          <div class="ai-f"><div class="ai-in"><span>Ask Insights AI anything…</span><span class="send">${I.send}</span></div><small>AI responses may contain inaccuracies. Please verify important data.</small></div>
+        </aside>` : ""}
+      </div>
+      ${S.sheetOpen ? sheetHTML() : ""}`;
+
+    renderControls(W, L, aw);
+    fit();
+    if (S.sheetOpen) wireDrag();
+  }
+
+  // ---------- Controls & readout ----------
+  const range = document.getElementById("screenRange");
+  const screenVal = document.getElementById("screenVal");
+  function renderControls() {
+    range.value = S.screen;
+    screenVal.textContent = S.screen.toLocaleString("en-US") + "px";
+  }
+  function unusedReadout() {
+    return;
+    aiToggle.disabled = S.screen >= R.aiLockedFrom;
+    aiToggleLabel.textContent = S.screen >= R.aiLockedFrom ? "AI panel (always open above 2,500px)" : "AI panel";
+    presets.querySelectorAll(".preset").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.w === S.screen)));
+    const px = n => Math.round(n).toLocaleString("en-US") + "px";
+    readout.innerHTML =
+      `<span class="chip">Table <b>${px(W)}</b></span>` +
+      `<span class="chip ${L.compact ? "view-compact" : "view-default"}"><b>${L.compact ? "Compact view" : "Comfortable view"}</b></span>` +
+      `<span class="chip">Columns <b>${L.n} of ${GROUPS.length * R.perGroup}</b></span>` +
+      `<span class="chip">Main <b>${px(L.main)}</b> · Cells <b>${px(L.cell)}</b></span>` +
+      (L.filler > 0.5 ? `<span class="chip">Empty state <b>${px(L.filler)}</b></span>` : "") +
+      (L.belowMin ? `<span class="chip warn">Below the ${px(MIN_TABLE)} minimum: handled separately</span>` : "");
+  }
+
+  function fit() {
+    const avail = scaler.parentElement.clientWidth - parseFloat(getComputedStyle(scaler.parentElement).paddingLeft) - parseFloat(getComputedStyle(scaler.parentElement).paddingRight);
+    const scale = Math.min(1, avail / S.screen);
+    app.style.transform = `scale(${scale})`;
+    scaler.style.width = (S.screen * scale) + "px";
+    scaler.style.height = (app.offsetHeight * scale) + "px";
+    try { parent.postMessage({ type: "rt-height", h: document.documentElement.scrollHeight }, "*"); } catch (e) {}
+  }
+
+  // ---------- Sheet logic ----------
+  function openSheet() { S.draftOrder = S.order.slice(); S.draftHidden = new Set(S.hidden); S.sheetOpen = true; markPop(); render(); focusIn(".sheet h2 + button"); }
+  function closeSheet(save) {
+    if (save) { S.order = S.draftOrder; S.hidden = S.draftHidden; }
+    S.sheetOpen = false; render(); focusIn("#custBtn");
+  }
+  function focusIn(sel) { const el = app.querySelector(sel); if (el) el.focus(); }
+  function tick(id, checked) {
+    const L = layout(tableWidth(), S.draftOrder, S.draftHidden);
+    if (!checked) {
+      if (L.avail.length <= R.minGroups) return;
+      S.draftHidden.add(id); // unticked groups stay hidden at every width; the next group comes in
+    } else {
+      S.draftHidden.delete(id);
+      const L2 = layout(tableWidth(), S.draftOrder, S.draftHidden);
+      if (!L2.shown.includes(id)) { // no room: swap it in for the last group shown
+        const last = L2.shown[L2.shown.length - 1];
+        S.draftOrder = S.draftOrder.filter(x => x !== id);
+        S.draftOrder.splice(S.draftOrder.indexOf(last), 0, id);
+      }
+    }
+    render(); focusIn(`input[data-id="${id}"]`);
+  }
+  function move(id, delta) {
+    const i = S.draftOrder.indexOf(id), j = i + delta;
+    if (j < 0 || j >= S.draftOrder.length) return;
+    S.draftOrder.splice(i, 1); S.draftOrder.splice(j, 0, id);
+    render(); focusIn(`.handle[data-id="${id}"]`);
+  }
+  function wireDrag() {
+    let dragId = null;
+    app.querySelectorAll(".crow").forEach(li => {
+      li.addEventListener("dragstart", e => { dragId = li.dataset.id; li.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", dragId); } catch (_) {} });
+      li.addEventListener("dragend", () => li.classList.remove("dragging"));
+      li.addEventListener("dragover", e => { e.preventDefault(); li.classList.add("over"); });
+      li.addEventListener("dragleave", () => li.classList.remove("over"));
+      li.addEventListener("drop", e => {
+        e.preventDefault(); const to = li.dataset.id; if (!dragId || dragId === to) return;
+        S.draftOrder = S.draftOrder.filter(x => x !== dragId); S.draftOrder.splice(S.draftOrder.indexOf(to), 0, dragId); render();
+      });
+    });
+  }
+  function markPop() { S.popSeen = true; try { localStorage.setItem("rt-pop-seen", "1"); } catch (e) {} }
+
+  // ---------- Events ----------
+  app.addEventListener("click", e => {
+    const t = e.target.closest("[data-act]"); if (!t) return;
+    const a = t.dataset.act;
+    if (a === "noop") { e.preventDefault(); return; }
+    if (a === "tree") { S.expanded = !S.expanded; render(); return; }
+    if (a === "ai-open") { S.aiPref = true; render(); return; }
+    if (a === "ai-close") { S.aiPref = false; render(); return; }
+    if (a === "open-sheet" || a === "pop-yes") { openSheet(); return; }
+    if (a === "pop-no") { markPop(); render(); return; }
+    if (a === "cancel") { closeSheet(false); return; }
+    if (a === "save") { closeSheet(true); return; }
+    if (a === "reset") { S.draftOrder = DEFAULT_ORDER.slice(); S.draftHidden = new Set(); render(); return; }
+    if (a === "scrim" && e.target === t) { closeSheet(false); return; }
+  });
+  app.addEventListener("change", e => {
+    if (e.target.id === "cmp") { S.compare = e.target.value; render(); return; }
+    if (e.target.dataset.act === "tick") tick(e.target.dataset.id, e.target.checked);
+  });
+  app.addEventListener("keydown", e => {
+    const h = e.target.closest(".handle");
+    if (h && (e.key === "ArrowUp" || e.key === "ArrowDown")) { e.preventDefault(); move(h.dataset.id, e.key === "ArrowUp" ? -1 : 1); }
+  });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && S.sheetOpen) closeSheet(false); });
+
+  range.addEventListener("input", () => { S.screen = +range.value; render(); });
+  new ResizeObserver(fit).observe(scaler.parentElement);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+
+  render();
+})();
+</script>
+
+</body>
+</html>
