@@ -452,7 +452,7 @@ table.dt { border-collapse: separate; border-spacing: 0; table-layout: fixed; fo
     app.style.transform = `scale(${scale})`;
     scaler.style.width = (S.screen * scale) + "px";
     scaler.style.height = (app.offsetHeight * scale) + "px";
-    try { parent.postMessage({ type: "rt-height", h: document.documentElement.scrollHeight }, "*"); } catch (e) {}
+    try { parent.postMessage({ type: "rt-height", h: Math.ceil(document.querySelector(".stage").getBoundingClientRect().bottom + window.scrollY) }, "*"); } catch (e) {}
   }
 
   // ---------- Sheet logic ----------
