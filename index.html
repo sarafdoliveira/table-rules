@@ -4,13 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Responsive Revenue Table</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <style>
-/* Layout: a prototype control strip on top, then the app rendered at the chosen screen width and scaled to fit.
-   Tokens follow the product's design system (semantic names, px values). Single light theme, matching the product. */
+/* A screen-width slider on top, then the app rendered at that width and scaled to fit. */
 :root {
   --bg-container: #ffffff;
   --bg-layout: #f8f9f9;
@@ -29,7 +27,6 @@
   --pos-bg: #eaf6ef; --pos-border: #2f9e5f; --pos-text: #1d6b3f;
   --neg-bg: #fdeeee; --neg-border: #d9534f; --neg-text: #a12d2a;
   --info-bg: #e5f5ff; --info-text: #0071b7;
-  --page: #e9ebeb;
   --font: "Inter", "Helvetica Neue", Arial, sans-serif;
   --radius-sm: 4px; --radius-md: 8px;
   color-scheme: light;
@@ -40,33 +37,14 @@ button, select, input { font-family: inherit; }
 :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
 /* ---------- Prototype controls ---------- */
-.proto { padding-block: 16px 12px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 12px; }
-.proto-top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
-.proto h1 { margin: 0; font-size: 18px; line-height: 26px; font-weight: 600; text-wrap: balance; }
-.proto-note { font-size: 13px; color: var(--text-secondary); }
+.proto { padding-block: 16px 12px; padding-left: 16px; padding-right: 16px; display: grid; gap: 12px; }
 .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; }
 .ctl { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .ctl-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
 #screenRange { width: 220px; max-width: 40vw; accent-color: var(--brand); }
 .screen-val { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 64px; }
-.presets { display: flex; flex-wrap: wrap; gap: 4px; }
-.preset { border: 1px solid var(--border-strong); background: var(--bg-container); color: var(--text-primary); border-radius: 999px; padding: 3px 10px; font-size: 12px; cursor: pointer; font-variant-numeric: tabular-nums; }
-.preset[aria-pressed="true"] { border-color: var(--brand); color: var(--brand); background: var(--brand-subtle); }
-.switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }
-.switch input { appearance: none; width: 34px; height: 20px; border-radius: 999px; background: var(--border-strong); position: relative; margin: 0; cursor: pointer; transition: background .15s; }
-.switch input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--bg-container); transition: transform .15s; }
-.switch input:checked { background: var(--ai); }
-.switch input:checked::after { transform: translateX(14px); }
-.switch input:disabled { opacity: .55; cursor: not-allowed; }
-.readout { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { display: inline-flex; gap: 6px; align-items: baseline; padding: 4px 10px; border-radius: var(--radius-sm); background: var(--bg-layout); border: 1px solid var(--border-default); font-size: 12px; white-space: nowrap; }
-.chip b { font-weight: 600; font-variant-numeric: tabular-nums; }
-.chip.view-compact { background: #eef3f2; border-color: #dbe5e3; }
-.chip.view-default { background: #ebe5f0; border-color: #ddd3e6; }
-.chip.warn { background: var(--neg-bg); border-color: #f3c9c8; color: var(--neg-text); }
-
 /* ---------- Stage ---------- */
-.stage { padding-block: 0 32px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.stage { padding-block: 0 32px; padding-left: 16px; padding-right: 16px; }
 .scaler { position: relative; overflow: hidden; border-radius: var(--radius-md); border: 1px solid var(--border-strong); background: var(--bg-container); }
 .app { position: absolute; top: 0; left: 0; transform-origin: 0 0; background: var(--bg-container); min-height: 920px; display: flex; flex-direction: column; }
 
@@ -205,6 +183,7 @@ table.dt { border-collapse: separate; border-spacing: 0; table-layout: fixed; fo
 .pop .row { display: flex; justify-content: flex-end; gap: 8px; }
 .pop .btn { height: 30px; padding: 0 12px; font-size: 13px; }
 
+.sem-p1{background:#e3f4e8!important}.sem-p2{background:#bfe5cb!important}.sem-n1{background:#fdeaea!important}.sem-n2{background:#f7c9c9!important}
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
@@ -323,7 +302,7 @@ table.dt { border-collapse: separate; border-spacing: 0; table-layout: fixed; fo
     info: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>',
     copy: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="1"/><path d="M4 16V5a1 1 0 0 1 1-1h11"/></svg>',
     clock: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
-    eyeoff: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l18 18M10.6 6.1A9.8 9.8 0 0 1 12 6c6 0 9.5 6 9.5 6a17 17 0 0 1-3.2 3.8M6.5 7.6A17 17 0 0 0 2.5 12S6 18 12 18a9 9 0 0 0 4-.9"/></svg>',
+    eyeoff: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 12S6 6 12 6s9.5 6 9.5 6-3.5 6-9.5 6S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg>',
     updown: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 9l4-4 4 4M8 15l4 4 4-4"/></svg>',
     expand: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
     cols: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M9 5v14M15 5v14"/></svg>',
@@ -352,7 +331,8 @@ table.dt { border-collapse: separate; border-spacing: 0; table-layout: fixed; fo
     h += fillH + `</tr><tr>`;
     L.shown.forEach(() => subs.forEach((s, i) => { h += `<th class="sub${i === 0 ? " gstart" : ""}" scope="col">${s}</th>`; }));
     h += `</tr></thead><tbody>`;
-    const cells = (name, scale) => L.shown.map(id => { const x = vals(name, scale, id, S.compare); return `<td class="num gstart">${f1(x.actual)}</td><td class="num">${sg(x.diff)}</td><td class="num">${sg(x.growth)}%</td>`; }).join("");
+    const semD=(d,a)=>{const p=Math.abs(d/a);return p>=.10?(d>0?" sem-p2":" sem-n2"):p>=.04?(d>0?" sem-p1":" sem-n1"):""};const semG=g=>{const p=Math.abs(g);return p>=40?(g>0?" sem-p2":" sem-n2"):p>=15?(g>0?" sem-p1":" sem-n1"):""};
+    const cells = (name, scale) => L.shown.map(id => { const x = vals(name, scale, id, S.compare); return `<td class="num gstart">${f1(x.actual)}</td><td class="num${semD(x.diff, x.actual)}">${sg(x.diff)}</td><td class="num${semG(x.growth)}">${sg(x.growth)}%</td>`; }).join("");
     // Total
     h += `<tr class="total"><td class="name maincol">Total</td>` + L.shown.map(id => {
       let a = 0, d = 0; ROWS.forEach(r => { const x = vals(r.name, r.scale, id, S.compare); a += x.actual; d += x.diff; });
@@ -366,7 +346,6 @@ table.dt { border-collapse: separate; border-spacing: 0; table-layout: fixed; fo
       h += `<tr><td class="name maincol">${nm}</td>${cells(r.name, r.scale)}${fillD}</tr>`;
       if (r.children && S.expanded) r.children.forEach(c => { h += `<tr class="child"><td class="name maincol">${c.name}</td>${cells(c.name, c.scale)}${fillD}</tr>`; });
     });
-    h = h.replace(/<td class="num gstart">/g, '<td class="num gstart">');
     return h + `</tbody></table>`;
   }
 
@@ -384,7 +363,7 @@ table.dt { border-collapse: separate; border-spacing: 0; table-layout: fixed; fo
       </li>`;
     }).join("");
     return `<div class="scrim" data-act="scrim"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
-      <div class="sheet-h"><h2 id="sheetTitle">Customise Table Columns</h2><button class="icon-btn" data-act="cancel" aria-label="Close">${I.x}</button></div>
+      <div class="sheet-h"><h2 id="sheetTitle">Customize Table Columns</h2><button class="icon-btn" data-act="cancel" aria-label="Close">${I.x}</button></div>
       <div class="sheet-b"><p>Select the columns to display, then drag to reorder.</p><ul class="clist" id="clist">${rows}</ul>
       ${locked ? `<div class="minnote">${I.info}At least 3 groups must stay selected.</div>` : ""}</div>
       <div class="sheet-f"><button class="btn text" data-act="reset">Reset to default</button><span class="spacer"></span><button class="btn" data-act="cancel">Cancel</button><button class="btn primary" data-act="save">Save</button></div>
@@ -395,8 +374,8 @@ table.dt { border-collapse: separate; border-spacing: 0; table-layout: fixed; fo
     const W = tableWidth();
     const L = layout(W, S.order, S.hidden);
     const aw = aiWidth();
-    const showCustomise = L.avail.length > L.shown.length || S.hidden.size > 0;
-    const showPop = showCustomise && !S.popSeen && !S.sheetOpen;
+    const showCustomize = L.avail.length > L.shown.length || S.hidden.size > 0;
+    const showPop = showCustomize && !S.popSeen && !S.sheetOpen;
     const total = vals("Total", 1, "ytd", "card");
 
     app.style.width = S.screen + "px";
@@ -438,8 +417,8 @@ table.dt { border-collapse: separate; border-spacing: 0; table-layout: fixed; fo
               <button class="tbtn sq" aria-label="Hide empty rows" data-act="noop">${I.eyeoff}</button>
               <button class="tbtn sq" aria-label="Expand all rows" data-act="tree">${I.updown}</button>
               <button class="tbtn sq" aria-label="Full screen" data-act="noop">${I.expand}</button>
-              ${showCustomise ? `<button class="tbtn" id="custBtn" data-act="open-sheet" aria-label="Customise Columns, new">${I.cols}Customise Columns <span class="badge-new" aria-hidden="true">NEW</span></button>` : ""}
-              ${showPop ? `<div class="pop" role="dialog" aria-labelledby="popT"><h3 id="popT">Tables now fit your screen</h3><p>No more sideways scrolling. Choose which columns to show, and in what order, with Customise Columns.</p><div class="row"><button class="btn" data-act="pop-no">Not now</button><button class="btn primary" data-act="pop-yes">Show me</button></div></div>` : ""}
+              ${showCustomize ? `<button class="tbtn" id="custBtn" data-act="open-sheet" aria-label="Customize Columns, new">${I.cols}Customize Columns <span class="badge-new" aria-hidden="true">NEW</span></button>` : ""}
+              ${showPop ? `<div class="pop" role="dialog" aria-labelledby="popT"><h3 id="popT">Tables now fit your screen</h3><p>No more sideways scrolling. Choose which columns to show, and in what order, with Customize Columns.</p><div class="row"><button class="btn" data-act="pop-no">Not now</button><button class="btn primary" data-act="pop-yes">Show me</button></div></div>` : ""}
             </div>
             <div class="tscroll ${L.belowMin ? "below-min" : ""}" style="width:${W}px">${tableHTML(L)}</div>
           </div>
@@ -455,33 +434,18 @@ table.dt { border-collapse: separate; border-spacing: 0; table-layout: fixed; fo
       </div>
       ${S.sheetOpen ? sheetHTML() : ""}`;
 
-    renderControls(W, L, aw);
+    renderControls();
     fit();
     if (S.sheetOpen) wireDrag();
   }
 
-  // ---------- Controls & readout ----------
+  // ---------- Slider ----------
   const range = document.getElementById("screenRange");
   const screenVal = document.getElementById("screenVal");
   function renderControls() {
     range.value = S.screen;
     screenVal.textContent = S.screen.toLocaleString("en-US") + "px";
   }
-  function unusedReadout() {
-    return;
-    aiToggle.disabled = S.screen >= R.aiLockedFrom;
-    aiToggleLabel.textContent = S.screen >= R.aiLockedFrom ? "AI panel (always open above 2,500px)" : "AI panel";
-    presets.querySelectorAll(".preset").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.w === S.screen)));
-    const px = n => Math.round(n).toLocaleString("en-US") + "px";
-    readout.innerHTML =
-      `<span class="chip">Table <b>${px(W)}</b></span>` +
-      `<span class="chip ${L.compact ? "view-compact" : "view-default"}"><b>${L.compact ? "Compact view" : "Comfortable view"}</b></span>` +
-      `<span class="chip">Columns <b>${L.n} of ${GROUPS.length * R.perGroup}</b></span>` +
-      `<span class="chip">Main <b>${px(L.main)}</b> · Cells <b>${px(L.cell)}</b></span>` +
-      (L.filler > 0.5 ? `<span class="chip">Empty state <b>${px(L.filler)}</b></span>` : "") +
-      (L.belowMin ? `<span class="chip warn">Below the ${px(MIN_TABLE)} minimum: handled separately</span>` : "");
-  }
-
   function fit() {
     const avail = scaler.parentElement.clientWidth - parseFloat(getComputedStyle(scaler.parentElement).paddingLeft) - parseFloat(getComputedStyle(scaler.parentElement).paddingRight);
     const scale = Math.min(1, avail / S.screen);
